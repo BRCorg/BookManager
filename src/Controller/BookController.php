@@ -27,7 +27,7 @@ class BookController extends AbstractController
     }
 
     #[Route('/new', name: 'new', methods: ['GET','POST'])]
-    #[IsGranted('ROLE_USER')]
+    #[IsGranted('ROLE_ADMIN')]
     public function new(
         Request $request,
         EntityManagerInterface $em,
@@ -35,44 +35,77 @@ class BookController extends AbstractController
         SluggerInterface $slugger
     ): Response {
         $book = new Book();
-
         $form = $this->createForm(BookType::class, $book, ['is_edit' => false]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // propriétaire
             $book->setUser($this->getUser());
-
-            // slug basé sur le titre
             $book->setSlug(strtolower($slugger->slug($book->getTitle())));
 
-            // upload image (jpg/png) + nommage slug + timestamp
             /** @var UploadedFile|null $file */
             $file = $form->get('coverFile')->getData();
             if ($file) {
                 $relativePath = $uploader->uploadCover($file, $book->getTitle());
-                $book->setCoverImage($relativePath); // ex: uploads/covers/mon-titre-1696000000.jpg
+                $book->setCoverImage($relativePath);
             }
 
             $em->persist($book);
             $em->flush();
 
             $this->addFlash('success', 'Livre ajouté avec succès.');
-
-            // redirige vers la liste (ou la page détail si tu ajoutes la route show)
             return $this->redirectToRoute('book_index');
         }
 
-        // tu peux garder templates/book/new.html.twig ou utiliser form.html.twig si tu préfères
-        return $this->render('book/new.html.twig', [
-            'form' => $form,
-        ]);
+        return $this->render('book/new.html.twig', ['form' => $form]);
     }
 
-    // (optionnel mais recommandé par l’exo : détail par slug)
     #[Route('/{slug}', name: 'show', methods: ['GET'])]
     public function show(Book $book): Response
     {
         return $this->render('book/show.html.twig', ['book' => $book]);
+    }
+
+    #[Route('/{id}/edit', name: 'edit', methods: ['GET','POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function edit(
+        Request $request,
+        Book $book,
+        EntityManagerInterface $em,
+        UploadService $uploader,
+        SluggerInterface $slugger
+    ): Response {
+        $form = $this->createForm(BookType::class, $book, ['is_edit' => true]);
+        $form->handleRequest($request);
+        $old = $book->getCoverImage();
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $book->setSlug(strtolower($slugger->slug($book->getTitle())));
+
+            /** @var UploadedFile|null $file */
+            $file = $form->get('coverFile')->getData();
+            if ($file) {
+                $uploader->delete($old);
+                $book->setCoverImage($uploader->uploadCover($file, $book->getTitle()));
+            }
+
+            $em->flush();
+            $this->addFlash('success', 'Livre mis à jour.');
+            return $this->redirectToRoute('book_show', ['slug' => $book->getSlug()]);
+        }
+
+        return $this->render('book/new.html.twig', ['form' => $form]); // réutilise le même form
+    }
+
+    #[Route('/{id}', name: 'delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function delete(Request $request, Book $book, EntityManagerInterface $em, UploadService $uploader): Response
+    {
+        if ($this->isCsrfTokenValid('delete'.$book->getId(), $request->request->get('_token'))) {
+            $uploader->delete($book->getCoverImage());
+            $em->remove($book);
+            $em->flush();
+            $this->addFlash('success', 'Livre supprimé.');
+        }
+        return $this->redirectToRoute('book_index');
     }
 }
