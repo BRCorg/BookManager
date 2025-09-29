@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tous les livres{% endblock %}
+
+{% block body %}
+    <div class="container py-5">
+        <h1 class="mb-3">Liste des livres</h1>
+        <p class="text-muted">🎉 Route <code>book_index</code> OK. On pourra remplacer ce contenu par la vraie liste.</p>
+        <p>
+            {% if app.user %}
+                Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.
+            {% else %}
+                <a class="btn btn-primary" href="{{ path('app_login') }}">Se connecter</a>
+            {% endif %}
+        </p>
+    </div>
+{% endblock %}
