@@ -2,43 +2,47 @@
 
 namespace App\Service;
 
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\SluggerInterface;
 
 class UploadService
 {
+    private string $uploadDir;
     public function __construct(
-        private readonly SluggerInterface $slugger,
-        private readonly string $uploadsDir = 'uploads/covers'
-    ) {}
+        private SluggerInterface $slugger,
+        string $publicDir = __DIR__.'/../../public'
+    ) {
+        $this->uploadDir = rtrim($publicDir, '/').'/uploads/covers';
+        (new Filesystem())->mkdir($this->uploadDir);
+    }
 
-    public function uploadCover(UploadedFile $file, string $baseName): string
+    // Retourne un chemin relatif à /public (ex: uploads/covers/titre-1696000000.jpg)
+    public function uploadCover(UploadedFile $file, string $title): string
     {
-        $mime = $file->getMimeType();
-        if (!in_array($mime, ['image/jpeg', 'image/png'], true)) {
-            throw new \RuntimeException('Type de fichier interdit');
+        // sécurité supplémentaire (on a déjà la contrainte de formulaire)
+        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png'];
+        $mime = $file->getMimeType() ?? '';
+        if (!isset($allowed[$mime])) {
+            throw new \RuntimeException('Format non autorisé (JPG/PNG uniquement).');
         }
 
-        $safe = strtolower($this->slugger->slug($baseName)->toString());
-        $ext  = $file->guessExtension() ?: 'jpg';
-        $name = sprintf('%s-%d.%s', $safe, time(), $ext);
+        $slug = strtolower($this->slugger->slug($title));
+        $ext  = $allowed[$mime]; // extension propre
+        $name = sprintf('%s-%d.%s', $slug, time(), $ext);
 
-        $target = dirname(__DIR__, 2) . '/public/' . $this->uploadsDir;
-        if (!is_dir($target)) {
-            @mkdir($target, 0775, true);
-        }
+        $file->move($this->uploadDir, $name);
 
-        $file->move($target, $name);
-
-        return $this->uploadsDir . '/' . $name; // chemin relatif (stocké en DB)
+        return 'uploads/covers/'.$name; // chemin relatif
     }
 
     public function delete(?string $relativePath): void
     {
         if (!$relativePath) return;
-        $full = dirname(__DIR__, 2) . '/public/' . ltrim($relativePath, '/');
-        if (is_file($full)) {
-            @unlink($full);
+        $abs = $this->uploadDir.'/'.basename($relativePath);
+        $fs = new Filesystem();
+        if ($fs->exists($abs)) {
+            $fs->remove($abs);
         }
     }
 }

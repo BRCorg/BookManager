@@ -1,0 +1,30 @@
+{# templates/book/form.html.twig #}
+{% extends 'base.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+
+{% block title %}{{ title|default('Ajouter un livre') }}{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-xl-7">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h1 class="h4 mb-0">{{ title|default('Ajouter un livre') }}</h1>
+                    </div>
+                    <div class="card-body">
+                        {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
+                        {{ form_row(form.title) }}
+                        {{ form_row(form.author) }}
+                        {{ form_row(form.genre) }}
+                        {{ form_row(form.description) }}
+                        {{ form_row(form.coverFile) }}
+                        <button class="btn btn-success">Enregistrer</button>
+                        <a href="{{ path('book_index') }}" class="btn btn-outline-secondary">Annuler</a>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

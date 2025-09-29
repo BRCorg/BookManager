@@ -1,17 +1,56 @@
 {% extends 'base.html.twig' %}
-
-{% block title %}Tous les livres{% endblock %}
+{% block title %}Liste des livres{% endblock %}
 
 {% block body %}
-    <div class="container py-5">
-        <h1 class="mb-3">Liste des livres</h1>
-        <p class="text-muted">🎉 Route <code>book_index</code> OK. On pourra remplacer ce contenu par la vraie liste.</p>
-        <p>
-            {% if app.user %}
-                Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.
-            {% else %}
-                <a class="btn btn-primary" href="{{ path('app_login') }}">Se connecter</a>
+    <h1 class="mb-3">Liste des livres</h1>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-6">
+            <input class="form-control" type="search" name="q" value="{{ q|default('') }}" placeholder="Rechercher par titre">
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" name="genre">
+                <option value="">— Tous les genres —</option>
+                {% for g in constant('App\\\\Entity\\\\Book::GENRES') %}
+                    <option value="{{ g }}" {{ genre|default('') == g ? 'selected' }}>{{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Filtrer</button>
+        </div>
+    </form>
+
+    <p class="text-muted mb-3">
+        {{ books|length }} résultat{{ books|length > 1 ? 's' : '' }}
+    </p>
+
+    {% if books is empty %}
+        <div class="alert alert-secondary">Aucun livre pour le moment.</div>
+    {% else %}
+        <ul class="list-group">
+            {% for b in books %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            <a href="{{ path('book_show', { slug: b.slug }) }}"><strong>{{ b.title }}</strong></a>
+            <small class="text-muted"> — {{ b.author }} • {{ b.genre }}</small>
+          </span>
+                    <span>
+            {% if is_granted('BOOK_EDIT', b) %}
+                <a class="btn btn-warning btn-sm" href="{{ path('book_edit', { id: b.id }) }}">Modifier</a>
             {% endif %}
-        </p>
-    </div>
+                        {% if is_granted('BOOK_DELETE', b) %}
+                            <form method="post" action="{{ path('book_delete', { id: b.id }) }}" class="d-inline" onsubmit="return confirm('Supprimer ?')">
+                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ b.id) }}">
+                <button class="btn btn-danger btn-sm">Supprimer</button>
+              </form>
+                        {% endif %}
+          </span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {# aide debug si besoin #}
+    {# {{ dump(books) }} #}
 {% endblock %}

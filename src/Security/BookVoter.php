@@ -9,19 +9,31 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 class BookVoter extends Voter
 {
-    public const EDIT='BOOK_EDIT'; public const DELETE='BOOK_DELETE';
+    public const EDIT   = 'BOOK_EDIT';
+    public const DELETE = 'BOOK_DELETE';
 
-    protected function supports(string $attr, $subject): bool
+    protected function supports(string $attribute, mixed $subject): bool
     {
-        return in_array($attr,[self::EDIT,self::DELETE],true) && $subject instanceof Book;
+        return \in_array($attribute, [self::EDIT, self::DELETE], true)
+            && $subject instanceof Book;
     }
 
-    protected function voteOnAttribute(string $attr, $book, TokenInterface $token): bool
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
     {
         $user = $token->getUser();
-        if (!$user instanceof User) return false;
+        if (!$user instanceof User) {
+            return false; // anonyme
+        }
 
-        if (in_array('ROLE_ADMIN', $user->getRoles(), true)) return true;   // admin : tout accès
-        return $book->getUser() === $user;                                   // propriétaire uniquement
+        /** @var Book $book */
+        $book = $subject;
+
+        // Admin = passe-droit
+        if (\in_array('ROLE_ADMIN', $user->getRoles(), true)) {
+            return true;
+        }
+
+        // Propriétaire uniquement
+        return $book->getUser()?->getId() === $user->getId();
     }
 }
